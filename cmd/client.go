@@ -18,15 +18,13 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"log"
 	"net"
-	"github.com/melotusme/middleman"
+	"log"
 )
 
-var typ string
-// proxyCmd represents the proxy command
-var proxyCmd = &cobra.Command{
-	Use:   "proxy",
+// clientCmd represents the client command
+var clientCmd = &cobra.Command{
+	Use:   "client",
 	Short: "A brief description of your command",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
@@ -35,35 +33,44 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("proxy called")
-		fmt.Println(typ)
+		fmt.Println("client called")
+		server := "localhost:8080"
+		serverAddr, err := net.ResolveTCPAddr("tcp", server)
+		if err != nil {
+			log.Fatal(err)
+		}
+		conn, err := net.DialTCP("tcp", nil, serverAddr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer conn.Close()
 
-		log.SetFlags(log.LstdFlags | log.Lshortfile)
-		l, err := net.Listen("tcp", ":8080")
+		n, err := conn.Write([]byte(`GET http://www.baidu.com HTTP/1.1
+Host: www.baidu.com
+
+a=b&c=e`+"\r\n"))
+		log.Printf("%d bytes sent\n", n)
+
+		reply := make([]byte, 1024)
+		n, err = conn.Read(reply)
 		if err != nil {
 			log.Panic(err)
 		}
-		for {
-			client, err := l.Accept()
-			if err != nil {
-				log.Panic(err)
-			}
-			handleFunc := middleman.RequestHandleManager[typ]
-			go handleFunc(client)
-		}
+		log.Printf("%d bytes received\n", n)
+		log.Println(string(reply))
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(proxyCmd)
+	rootCmd.AddCommand(clientCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	proxyCmd.PersistentFlags().StringVar(&typ, "typ", "http", "proxy type")
+	// clientCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	proxyCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// clientCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
